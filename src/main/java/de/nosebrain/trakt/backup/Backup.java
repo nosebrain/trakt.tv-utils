@@ -24,6 +24,7 @@ import com.uwetrottmann.trakt.v2.entities.Show;
 import com.uwetrottmann.trakt.v2.services.Users;
 
 public class Backup {
+  private static final String NEW_LINE = "\n";
   private static final String ACCESS_TOKEN = "access.token";
 
   public static void main(final String[] args) throws Exception {
@@ -65,29 +66,30 @@ public class Backup {
     
     for (final BaseShow baseShow : watchedShows) {
       final Show show = baseShow.show;
-      final String title = show.title;
+      final String title = show.title + " (" + show.year + ")";
       System.out.println(title);
       
-      final File showFile = new File(showOutputFolder, title + ".txt");
+      final File showFile = new File(showOutputFolder, title + ".md");
       final Writer writer = new OutputStreamWriter(new FileOutputStream(showFile));
       
       for (final BaseSeason season : baseShow.seasons) {
-        writer.write(season.number + ". Staffel\n");
+        writer.write("# " + season.number + ". Season\n");
         for (final BaseEpisode episode : sortEpisodes(season.episodes)) {
           writer.write(String.valueOf(episode.number));
-          writer.write("\n");
+          writer.write(NEW_LINE);
         }
+        writer.write(NEW_LINE);
       }
       writer.close();
     }
     
-    final File movieFile = new File(outputFolder, "Movies.txt");
+    final File movieFile = new File(outputFolder, "Movies.md");
     final Writer writer = new OutputStreamWriter(new FileOutputStream(movieFile), "UTF-8");
     
     final List<BaseMovie> watchedMovies = users.watchedMovies(username, null);
     for (final BaseMovie baseMovie : sortMovies(watchedMovies)) {
       writer.write(baseMovie.movie.title);
-      writer.write("\n");
+      writer.write(NEW_LINE);
     }
     
     writer.close();
