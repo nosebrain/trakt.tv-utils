@@ -21,6 +21,7 @@ import com.uwetrottmann.trakt.v2.entities.BaseMovie;
 import com.uwetrottmann.trakt.v2.entities.BaseSeason;
 import com.uwetrottmann.trakt.v2.entities.BaseShow;
 import com.uwetrottmann.trakt.v2.entities.Show;
+import com.uwetrottmann.trakt.v2.entities.Username;
 import com.uwetrottmann.trakt.v2.services.Users;
 
 public class Backup {
@@ -37,7 +38,7 @@ public class Backup {
       outputFolder.mkdirs();
     }
     
-    final String username = properties.getProperty("username");
+    final Username username = new Username(properties.getProperty("username"));
     final TraktV2 trakt = new TraktV2();
     
     final String clientId = properties.getProperty("client.id");
@@ -50,6 +51,7 @@ public class Backup {
       final Scanner sc = new Scanner(System.in);
       final String authCode = sc.next();
       sc.close();
+      System.out.println("getting token");
       final OAuthAccessTokenResponse code = TraktV2.getAccessToken(clientId, clientSecret, "urn:ietf:wg:oauth:2.0:oob", authCode);
       accessToken = code.getAccessToken();
       properties.setProperty(ACCESS_TOKEN, accessToken);
