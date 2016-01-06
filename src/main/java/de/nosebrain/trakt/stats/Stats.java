@@ -99,7 +99,7 @@ public class Stats {
               }
               
               final Episode currentLastEpisode = showsInfo.get(slug);
-              if ((currentLastEpisode == null) || (episode.season.intValue() > currentLastEpisode.season.intValue()) || ((episode.season.intValue()== currentLastEpisode.season.intValue()) && (episode.number.intValue() > currentLastEpisode.number.intValue()))) {
+              if ((currentLastEpisode == null) || (episode.season.intValue() > currentLastEpisode.season.intValue()) || ((episode.season.intValue() == currentLastEpisode.season.intValue()) && (episode.number.intValue() > currentLastEpisode.number.intValue()))) {
                 showsInfo.put(slug, episode);
               }
               
@@ -111,7 +111,7 @@ public class Stats {
           }
         }
       }
-    } while (history.size() == 100);
+    } while (history.size() == STEP_SIZE);
     
     final Set<String> finishedShows = new TreeSet<>();
     
