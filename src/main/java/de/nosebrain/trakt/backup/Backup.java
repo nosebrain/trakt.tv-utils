@@ -1,5 +1,17 @@
 package de.nosebrain.trakt.backup;
 
+import com.uwetrottmann.trakt.v2.TraktV2;
+import com.uwetrottmann.trakt.v2.entities.BaseEpisode;
+import com.uwetrottmann.trakt.v2.entities.BaseMovie;
+import com.uwetrottmann.trakt.v2.entities.BaseSeason;
+import com.uwetrottmann.trakt.v2.entities.BaseShow;
+import com.uwetrottmann.trakt.v2.entities.Episode;
+import com.uwetrottmann.trakt.v2.entities.Show;
+import com.uwetrottmann.trakt.v2.entities.Username;
+import com.uwetrottmann.trakt.v2.services.Seasons;
+import com.uwetrottmann.trakt.v2.services.Users;
+import de.nosebrain.trakt.util.AuthUtil;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -8,25 +20,13 @@ import java.io.Writer;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
-import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-import org.apache.oltu.oauth2.client.response.OAuthAccessTokenResponse;
-
-import com.uwetrottmann.trakt.v2.TraktV2;
-import com.uwetrottmann.trakt.v2.entities.BaseEpisode;
-import com.uwetrottmann.trakt.v2.entities.BaseMovie;
-import com.uwetrottmann.trakt.v2.entities.BaseSeason;
-import com.uwetrottmann.trakt.v2.entities.BaseShow;
-import com.uwetrottmann.trakt.v2.entities.Show;
-import com.uwetrottmann.trakt.v2.entities.Username;
-import com.uwetrottmann.trakt.v2.services.Users;
-
 public class Backup {
   private static final String NEW_LINE = "\n";
-  private static final String ACCESS_TOKEN = "access.token";
 
   public static void main(final String[] args) throws Exception {
     final Properties properties = new Properties();
@@ -37,47 +37,47 @@ public class Backup {
     if (!outputFolder.exists()) {
       outputFolder.mkdirs();
     }
-    
-    final Username username = new Username(properties.getProperty("username"));
-    final TraktV2 trakt = new TraktV2();
-    
+
+    final String username = properties.getProperty("username");
     final String clientId = properties.getProperty("client.id");
     final String clientSecret = properties.getProperty("client.secret");
-    trakt.setApiKey(clientId);
     
-    String accessToken = properties.getProperty(ACCESS_TOKEN);
-    if (accessToken == null) {
-      System.out.println("Enter authCode: ");
-      final Scanner sc = new Scanner(System.in);
-      final String authCode = sc.next();
-      sc.close();
-      System.out.println("getting token");
-      final OAuthAccessTokenResponse code = TraktV2.getAccessToken(clientId, clientSecret, "urn:ietf:wg:oauth:2.0:oob", authCode);
-      accessToken = code.getAccessToken();
-      properties.setProperty(ACCESS_TOKEN, accessToken);
-      properties.store(new FileOutputStream(propertiesFile), null);
-    }
-    
-    trakt.setAccessToken(accessToken);
-    
+    final TraktV2 trakt = AuthUtil.getAccess(clientId, clientSecret);
+
+    final Username user = new Username(username);
     final File showOutputFolder = new File(outputFolder, "shows");
     showOutputFolder.mkdir();
     
     final Users users = trakt.users();
-    final List<BaseShow> watchedShows = users.watchedShows(username, null);
+    final Seasons seasonsApi = trakt.seasons();
+    final List<BaseShow> watchedShows = users.watchedShows(user, null);
     
     for (final BaseShow baseShow : watchedShows) {
       final Show show = baseShow.show;
-      final String title = show.title + " (" + show.year + ")";
-      System.out.println(title);
+      final String showTitle = show.title + " (" + show.year + ")";
+      System.out.println(showTitle);
       
-      final File showFile = new File(showOutputFolder, title + ".md");
+      final File showFile = new File(showOutputFolder, showTitle + ".md");
       final Writer writer = new OutputStreamWriter(new FileOutputStream(showFile));
       
       for (final BaseSeason season : baseShow.seasons) {
-        writer.write("# " + season.number + ". Season\n");
+        final Integer seasonNumber = season.number;
+        final List<Episode> episodes = seasonsApi.season(baseShow.show.ids.slug, seasonNumber, null);
+
+        writer.write("# " + seasonNumber + ". Season\n");
         for (final BaseEpisode episode : sortEpisodes(season.episodes)) {
-          writer.write(String.valueOf(episode.number));
+          final Integer episodeNumber = episode.number;
+          writer.write(String.valueOf(episodeNumber));
+
+          final Optional<Episode> episodeInfo = findEpisode(episodes, episodeNumber);
+          if (episodeInfo.isPresent()) {
+            writer.write(" ");
+            final String episodeTitle = episodeInfo.get().title;
+            if (episodeTitle != null) {
+              writer.write(episodeTitle);
+            }
+          }
+
           writer.write(NEW_LINE);
         }
         writer.write(NEW_LINE);
@@ -88,7 +88,7 @@ public class Backup {
     final File movieFile = new File(outputFolder, "Movies.md");
     final Writer writer = new OutputStreamWriter(new FileOutputStream(movieFile), "UTF-8");
     
-    final List<BaseMovie> watchedMovies = users.watchedMovies(username, null);
+    final List<BaseMovie> watchedMovies = users.watchedMovies(user, null);
     for (final BaseMovie baseMovie : sortMovies(watchedMovies)) {
       writer.write(baseMovie.movie.title);
       writer.write(NEW_LINE);
@@ -96,31 +96,22 @@ public class Backup {
     
     writer.close();
   }
-  
+
+  private static Optional<Episode> findEpisode(List<Episode> episodes, Integer episodeNumber) {
+    return episodes.stream().filter(episode -> episode.number == episodeNumber).findFirst();
+  }
+
   private static <T> SortedSet<T> sort(final Collection<T> collection, final Comparator<T> comparator) {
-    final SortedSet<T> sorted = new TreeSet<T>(comparator);
-    
-    for (final T element : collection) {
-      sorted.add(element);
-    }
+    final SortedSet<T> sorted = new TreeSet<>(comparator);
+    sorted.addAll(collection);
     return sorted;
   }
 
-  private static SortedSet<BaseMovie> sortMovies(final List<BaseMovie> watchedMovies) {
-    return sort(watchedMovies, new Comparator<BaseMovie>() {
-      @Override
-      public int compare(final BaseMovie o1, final BaseMovie o2) {
-        return o1.movie.title.compareTo(o2.movie.title);
-      }
-    });
+  private static SortedSet<BaseMovie>  sortMovies(final List<BaseMovie> watchedMovies) {
+    return sort(watchedMovies, Comparator.comparing(o -> o.movie.title));
   }
 
   private static SortedSet<BaseEpisode> sortEpisodes(final List<BaseEpisode> episodes) {
-    return sort(episodes, new Comparator<BaseEpisode>() {
-      @Override
-      public int compare(final BaseEpisode o1, final BaseEpisode o2) {
-        return o1.number - o2.number;
-      }
-    });
+    return sort(episodes, Comparator.comparingInt(o -> o.number));
   }
 }

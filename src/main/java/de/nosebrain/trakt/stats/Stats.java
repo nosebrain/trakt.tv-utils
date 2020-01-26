@@ -1,22 +1,5 @@
 package de.nosebrain.trakt.stats;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.apache.oltu.oauth2.client.response.OAuthAccessTokenResponse;
-
 import com.uwetrottmann.trakt.v2.TraktV2;
 import com.uwetrottmann.trakt.v2.entities.Episode;
 import com.uwetrottmann.trakt.v2.entities.HistoryEntry;
@@ -26,10 +9,23 @@ import com.uwetrottmann.trakt.v2.entities.Username;
 import com.uwetrottmann.trakt.v2.enums.Extended;
 import com.uwetrottmann.trakt.v2.enums.Status;
 import com.uwetrottmann.trakt.v2.services.Users;
+import de.nosebrain.trakt.util.AuthUtil;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class Stats {
   private static final int STEP_SIZE = 100;
-  private static final String ACCESS_TOKEN = "access.token";
 
   public static void main(final String[] args) throws Exception {
     final Properties properties = new Properties();
@@ -37,25 +33,9 @@ public class Stats {
     properties.load(new FileInputStream(propertiesFile));
     
     final Username username = new Username(properties.getProperty("username"));
-    final TraktV2 trakt = new TraktV2();
-    
     final String clientId = properties.getProperty("client.id");
     final String clientSecret = properties.getProperty("client.secret");
-    trakt.setApiKey(clientId);
-    
-    String accessToken = properties.getProperty(ACCESS_TOKEN);
-    if (accessToken == null) {
-      System.out.println("Enter authCode: ");
-      final Scanner sc = new Scanner(System.in);
-      final String authCode = sc.next();
-      sc.close();
-      System.out.println("getting token");
-      final OAuthAccessTokenResponse code = TraktV2.getAccessToken(clientId, clientSecret, "urn:ietf:wg:oauth:2.0:oob", authCode);
-      accessToken = code.getAccessToken();
-      properties.setProperty(ACCESS_TOKEN, accessToken);
-      properties.store(new FileOutputStream(propertiesFile), null);
-    }
-    trakt.setAccessToken(accessToken);
+    final TraktV2 trakt = AuthUtil.getAccess(clientId, clientSecret);
     
     final Set<String> startedSeries = new TreeSet<>();
     
