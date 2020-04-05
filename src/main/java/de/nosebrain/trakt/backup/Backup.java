@@ -57,7 +57,7 @@ public class Backup {
       final String showTitle = show.title + " (" + show.year + ")";
       System.out.println(showTitle);
       
-      final File showFile = new File(showOutputFolder, showTitle + ".md");
+      final File showFile = new File(showOutputFolder, showTitle + ".txt");
       final Writer writer = new OutputStreamWriter(new FileOutputStream(showFile));
       
       for (final BaseSeason season : baseShow.seasons) {
@@ -85,7 +85,7 @@ public class Backup {
       writer.close();
     }
     
-    final File movieFile = new File(outputFolder, "Movies.md");
+    final File movieFile = new File(outputFolder, "Movies.txt");
     final Writer writer = new OutputStreamWriter(new FileOutputStream(movieFile), "UTF-8");
     
     final List<BaseMovie> watchedMovies = users.watchedMovies(user, null);
